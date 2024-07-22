@@ -28,55 +28,6 @@ function App() {
     }
   }, [])
 
-  const handleNewNote = useCallback(async () => {
-    try {
-      const { error } = await supabase
-        .from('note')
-        .insert({ title: '新規ノート', content: '' })
-
-      if (error) throw error
-      fetchNotes()
-    } catch (error) {
-      console.error('Error creating new note: ', error)
-    }
-  }, [fetchNotes])
-
-  const handleContentChange = useCallback(
-    (content: string) => {
-      setCurrentValue(content)
-      debounce(async () => {
-        try {
-          console.log('hogehoge')
-          const { error } = await supabase
-            .from('note')
-            .update({ content })
-            .eq('id', currentNoteId)
-
-          if (error) throw error
-        } catch (error) {
-          console.error('Error updating note content: ', error)
-        }
-      })
-    },
-    [debounce, currentNoteId]
-  )
-
-  const handleTitleChange = useCallback(
-    async (title: string) => {
-      try {
-        const { error } = await supabase
-          .from('note')
-          .update({ title })
-          .eq('id', currentNoteId)
-
-        if (error) throw error
-      } catch (error) {
-        console.error('Error updating note title: ', error)
-      }
-    },
-    [currentNoteId]
-  )
-
   useEffect(() => {
     fetchNotes()
     const subscription = supabase
@@ -95,10 +46,48 @@ function App() {
 
   useEffect(() => {
     const target = notes.find((note) => note.id === currentNoteId)
-    if (target) {
-      setCurrentValue(target.content)
-    }
+    target && setCurrentValue(target.content)
   }, [currentNoteId, notes])
+
+  const handleNewNote = async () => {
+    try {
+      const { error } = await supabase
+        .from('note')
+        .insert({ title: '新規ノート', content: '' })
+
+      if (error) throw error
+      fetchNotes()
+    } catch (error) {
+      console.error('Error creating new note: ', error)
+    }
+  }
+  const handleContentChange = (content: string) => {
+    setCurrentValue(content)
+    debounce(async () => {
+      try {
+        const { error } = await supabase
+          .from('note')
+          .update({ content })
+          .eq('id', currentNoteId)
+
+        if (error) throw error
+      } catch (error) {
+        console.error('Error updating note content: ', error)
+      }
+    })
+  }
+  const handleTitleChange = async (title: string) => {
+    try {
+      const { error } = await supabase
+        .from('note')
+        .update({ title })
+        .eq('id', currentNoteId)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating note title: ', error)
+    }
+  }
 
   return (
     <div className="flex h-screen">
@@ -129,9 +118,7 @@ function App() {
           </button>
         </div>
         <NoteEditor
-          content={
-            currentValue ?? ""
-          }
+          content={currentValue ?? ''}
           isPreviewMode={previewMode}
           onContentChange={handleContentChange}
         />
