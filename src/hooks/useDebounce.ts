@@ -7,11 +7,10 @@ export const useDebounce = (timeout: number): Debounce => {
   const debounce: Debounce = useCallback(
     (fn) => {
       if (timer.current) clearTimeout(timer.current)
-
-      const hoge = setTimeout(() => {
+      
+      timer.current = setTimeout(() => {
         fn()
       }, timeout)
-      timer.current = hoge
     },
     [timeout]
   )
