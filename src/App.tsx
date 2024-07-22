@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import './App.css'
 import { NoteList } from './NoteList'
 import { supabase } from './supabase/client'
@@ -14,9 +14,71 @@ function App() {
 
   const debounce = useDebounce(2000)
 
+  const fetchNotes = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('note')
+        .select('*')
+        .order('id', { ascending: false })
+
+      if (error) throw error
+      setNotes(data)
+    } catch (error) {
+      console.error('Error fetching Notes: ', error)
+    }
+  }, [])
+
+  const handleNewNote = useCallback(async () => {
+    try {
+      const { error } = await supabase
+        .from('note')
+        .insert({ title: '新規ノート', content: '' })
+
+      if (error) throw error
+      fetchNotes()
+    } catch (error) {
+      console.error('Error creating new note: ', error)
+    }
+  }, [fetchNotes])
+
+  const handleContentChange = useCallback(
+    (content: string) => {
+      setCurrentValue(content)
+      debounce(async () => {
+        try {
+          console.log('hogehoge')
+          const { error } = await supabase
+            .from('note')
+            .update({ content })
+            .eq('id', currentNoteId)
+
+          if (error) throw error
+        } catch (error) {
+          console.error('Error updating note content: ', error)
+        }
+      })
+    },
+    [debounce, currentNoteId]
+  )
+
+  const handleTitleChange = useCallback(
+    async (title: string) => {
+      try {
+        const { error } = await supabase
+          .from('note')
+          .update({ title })
+          .eq('id', currentNoteId)
+
+        if (error) throw error
+      } catch (error) {
+        console.error('Error updating note title: ', error)
+      }
+    },
+    [currentNoteId]
+  )
+
   useEffect(() => {
     fetchNotes()
-
     const subscription = supabase
       .channel('note')
       .on(
@@ -29,52 +91,14 @@ function App() {
     return () => {
       supabase.removeChannel(subscription)
     }
-  }, [])
+  }, [fetchNotes])
 
-  const fetchNotes = async () => {
-    const { data, error } = await supabase
-      .from('note')
-      .select('*')
-      .order('id', {
-        ascending: false
-      })
-
-    if (error) console.error('Error fetching Notes: ', error)
-    else setNotes(data)
-  }
-
-  const handleNewNote = async () => {
-    const { data, error } = await supabase
-      .from('note')
-      .insert({ title: '新規ノート', content: '' })
-
-    if (error || data) {
-      console.log(error)
-      return
+  useEffect(() => {
+    const target = notes.find((note) => note.id === currentNoteId)
+    if (target) {
+      setCurrentValue(target.content)
     }
-    fetchNotes()
-  }
-
-  const handleContentChange = async (content: string) => {
-    setCurrentValue(content)
-    debounce(async () => {
-      const { error } = await supabase
-        .from('note')
-        .update({ content: currentValue })
-        .eq('id', currentNoteId)
-
-      if (error) console.error('Error update note content: ', error)
-    })
-  }
-
-  const handleTitleChange = async (title: string) => {
-    const { error } = await supabase
-      .from('note')
-      .update({ title })
-      .eq('id', currentNoteId)
-
-    if (error) console.error('Error update note title: ')
-  }
+  }, [currentNoteId, notes])
 
   return (
     <div className="flex h-screen">
@@ -106,7 +130,7 @@ function App() {
         </div>
         <NoteEditor
           content={
-            currentValue ?? (notes.find((note) => note.id === currentNoteId)?.content || '')
+            currentValue ?? ""
           }
           isPreviewMode={previewMode}
           onContentChange={handleContentChange}
